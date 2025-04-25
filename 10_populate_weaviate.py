@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timezone
 import json
 from tqdm import tqdm
+from helpers import COLLECTION_NAME
 
 weaviate_url = os.getenv("WEAVIATE_URL")
 weaviate_key = os.getenv("WEAVIATE_API_KEY")
@@ -17,21 +18,25 @@ client = weaviate.connect_to_weaviate_cloud(
     auth_credentials=Auth.api_key(weaviate_key)
 )
 
-collection_name = "ForumPost"
+with open("data/simplified_posts.json", "r") as f:
+    data = json.load(f)
 
-if client.collections.exists(collection_name):
+if COLLECTION_NAME == "ForumPost":
+    data = data[:100]
+
+if client.collections.exists(COLLECTION_NAME):
     confirmation = input(
-        f"Collection '{collection_name}' already exists. Do you want to delete it? (y/n): "
+        f"Collection '{COLLECTION_NAME}' already exists. Do you want to delete it? (y/n): "
     )
     if confirmation.lower() == "y":
-        client.collections.delete(collection_name)
+        client.collections.delete(COLLECTION_NAME)
     else:
         print("Exiting without deleting the collection.")
         client.close()
         exit()
 
 client.collections.create(
-    collection_name,
+    COLLECTION_NAME,
     description="This collection contains conversations from the Weaviate Forum.",
     properties=[
         Property(
@@ -42,7 +47,7 @@ client.collections.create(
         Property(
             name="conversation",
             description="Text of the entire forum conversation thread.",
-            data_type=DataType.TEXT
+            data_type=DataType.TEXT,
         ),
         Property(
             name="date_created",
@@ -75,14 +80,14 @@ client.collections.create(
             source_properties=["title"]
         ),
     ],
-)
+    replication_config=Configure.replication(factor=3),
+    inverted_index_config=Configure.inverted_index(
+        index_null_state=True,
+        index_timestamps=True,
+    )
+)# Limit to 10 for testing
 
-with open("data/simplified_posts.json", "r") as f:
-    data = json.load(f)
-
-data = data[:100]  # Limit to 10 for testing
-
-posts = client.collections.get(collection_name)
+posts = client.collections.get(COLLECTION_NAME)
 
 with posts.batch.fixed_size(200) as batch:
     # Add objects to the batch

@@ -3,6 +3,7 @@ from weaviate.classes.init import Auth
 from weaviate.classes.generate import GenerativeConfig
 import os
 from dotenv import load_dotenv
+from helpers import COLLECTION_NAME
 
 weaviate_url = os.getenv("WEAVIATE_URL")
 weaviate_key = os.getenv("WEAVIATE_API_KEY")
@@ -17,9 +18,7 @@ client = weaviate.connect_to_weaviate_cloud(
     }
 )
 
-collection_name = "ForumPost"
-
-collection = client.collections.get(collection_name)
+collection = client.collections.get(COLLECTION_NAME)
 
 response = collection.query.fetch_objects(
     limit=50,
