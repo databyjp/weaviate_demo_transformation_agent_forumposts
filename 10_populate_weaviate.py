@@ -21,8 +21,8 @@ client = weaviate.connect_to_weaviate_cloud(
 with open("data/simplified_posts.json", "r") as f:
     data = json.load(f)
 
-if COLLECTION_NAME == "ForumPost":
-    data = data[:100]
+if COLLECTION_NAME == "ForumPostSmall":
+    data = data[:20]
 
 if client.collections.exists(COLLECTION_NAME):
     confirmation = input(
@@ -46,7 +46,12 @@ client.collections.create(
         ),
         Property(
             name="conversation",
-            description="Text of the entire forum conversation thread.",
+            description="Text of the entire forum conversation thread, truncated to 20,000 characters maximum for context limit.",
+            data_type=DataType.TEXT,
+        ),
+        Property(
+            name="conversation_full",
+            description="Full text of the entire forum conversation thread.",
             data_type=DataType.TEXT,
         ),
         Property(
@@ -73,7 +78,7 @@ client.collections.create(
     vectorizer_config=[
         Configure.NamedVectors.text2vec_weaviate(
             name="default",
-            source_properties=["conversation", "title"]
+            source_properties=["conversation_full", "title"]
         ),
         Configure.NamedVectors.text2vec_weaviate(
             name="title",
@@ -85,7 +90,7 @@ client.collections.create(
         index_null_state=True,
         index_timestamps=True,
     )
-)# Limit to 10 for testing
+)
 
 posts = client.collections.get(COLLECTION_NAME)
 
@@ -93,6 +98,9 @@ with posts.batch.fixed_size(200) as batch:
     # Add objects to the batch
     for i, row in tqdm(enumerate(data)):
         row["date_created"] = datetime.fromisoformat(row["date_created"]).replace(tzinfo=timezone.utc)
+        if len(row["conversation"]) > 20000:
+            row["conversation"] = row["conversation"][:10000] + '...' + row["conversation"][-10000:]
+        row["conversation_full"] = row["conversation"]
         batch.add_object(
             properties=row,
             uuid=generate_uuid5(row["topic_id"])

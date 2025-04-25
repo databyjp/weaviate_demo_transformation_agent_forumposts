@@ -132,6 +132,21 @@ was_it_a_documentation_gap = Operations.append_property(
     """,
 )
 
+summary = Operations.append_property(
+    property_name="summary",
+    data_type=DataType.TEXT,
+    view_properties=["conversation", "title"],
+    instruction="""
+    Summarize the user's question and the solution provided in a few sentences, like this:
+    {
+        "question": "<SUMMARY OF THE QUESTION>",
+        "solution": "<SUMMARY OF THE SOLUTION>"
+    }
+
+    If there was no solution provided, set "solution": None.
+    """,
+)
+
 ta = TransformationAgent(
     client=client,
     collection=COLLECTION_NAME,

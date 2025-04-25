@@ -100,7 +100,7 @@ for o in response.objects:
     # Remove new lines at the beginning and end
     conversation = conversation.strip()
 
-    limit = 1000
+    limit = 200
     print(f"{Fore.GREEN}\nConversation (first {limit} chars):{Style.RESET_ALL}")
     print(f"{Fore.LIGHTBLACK_EX}{conversation[:limit]}{Style.RESET_ALL}...")
 
