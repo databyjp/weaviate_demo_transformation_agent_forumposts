@@ -39,69 +39,96 @@ analysis_props = [
 for prop in analysis_props:
 
     response = collection.aggregate.over_all(
-        group_by=GroupByAggregate(prop=prop),
-        filters=Filter.by_property(name="isDocumentationGap").equal(True)
+        group_by=GroupByAggregate(prop=prop)
     )
-
-    # # print rounds names and the count for each
-    # for group in response.groups:
-    #     print(f"Value: {group.grouped_by.value} Count: {group.total_count}")
     print(f"\nProperty: {prop}")
     for group in response.groups:
         print(f"Value: {group.grouped_by} Count: {group.total_count}")
 
-response = collection.generate.fetch_objects(
-    filters=(
-        Filter.by_property(name="technicalDomain").equal("integration")
-    ),
-    limit=5,
-    generative_provider=GenerativeConfig.anthropic(
-        model="claude-3-5-haiku-latest",
-    ),
-    single_prompt="""
-    Summarize this user's question and the solution provided in a few sentences, like this:
-    {
-        "question": "<SUMMARY OF THE QUESTION>",
-        "solution": "<SUMMARY OF THE SOLUTION>"
-    }
-    Data:
-    {conversation}
-    """
+
+prop = "technicalDomain"
+response = collection.aggregate.over_all(
+    group_by=GroupByAggregate(prop=prop),
+    filters=Filter.by_property(name="rootCauseCategory").equal("conceptual_misunderstanding")
 )
 
-print("Examples:")
-for o in response.objects:
-    print("\n" + "-" * 50)
-    print(f"Object ID: {o.uuid}")
-    print(f"Title: {Fore.CYAN}{o.properties['title']}{Style.RESET_ALL}")
+print(f"\nProperty: {prop}")
+for group in response.groups:
+    print(f"Value: {group.grouped_by} Count: {group.total_count}")
 
-    print(f"{Fore.GREEN}\n== ANALYSIS =={Style.RESET_ALL}")
-    print(f"Technical Complexity: {o.properties['technicalComplexity']}")
-    print(f"Root Cause Category: {o.properties['rootCauseCategory']}")
-    print(f"Access Context: {o.properties['accessContext']}")
-    print(f"Caused By Outdated Stack: {o.properties['causedByOutdatedStack']}")
-    print(f"Is Documentation Gap: {o.properties['isDocumentationGap']}")
 
-    print(f"{Fore.GREEN}\n== SUMMARY =={Style.RESET_ALL}")
-    print(f"{Fore.LIGHTMAGENTA_EX}{o.generative.text}{Style.RESET_ALL}")
+response = collection.generate.fetch_objects(
+    filters=(
+        Filter.by_property(name="rootCauseCategory").equal("conceptual_misunderstanding") &
+        Filter.by_property(name="technicalDomain").equal("queries")
+    ),
+    limit=100,
+    generative_provider=GenerativeConfig.anthropic(model="claude-3-7-sonnet-latest"),
+    grouped_task="""
+    From these Weaviate Forum post conversations, identify 3-5 most common things
+    that we can help users to understand better about Weaviate queries.
+    If possible, also provide a count of each type in the sample.
+    """,
+    grouped_properties=["summary", "title"]
+)
 
-    conversation = o.properties['conversation']
+print(f"\n{response.generative.text}")
 
-    # First normalize all types of line endings
-    conversation = conversation.replace('\r\n', '\n').replace('\r', '\n')
 
-    # Clean up excess whitespace around newlines without removing paragraph breaks
-    conversation = re.sub(r'[ \t]+\n', '\n', conversation)  # Remove trailing spaces before newlines
-    conversation = re.sub(r'\n[ \t]+', '\n', conversation)  # Remove leading spaces after newlines
 
-    # Replace sequences of 3 or more newlines with exactly two newlines
-    conversation = re.sub(r'\n{3,}', '\n\n', conversation)
 
-    # Remove new lines at the beginning and end
-    conversation = conversation.strip()
 
-    limit = 200
-    print(f"{Fore.GREEN}\nConversation (first {limit} chars):{Style.RESET_ALL}")
-    print(f"{Fore.LIGHTBLACK_EX}{conversation[:limit]}{Style.RESET_ALL}...")
+
+# response = collection.generate.fetch_objects(
+#     filters=(
+#         Filter.by_property(name="isDocumentationGap").equal(True)
+#     ),
+#     limit=5,
+#     generative_provider=GenerativeConfig.anthropic(
+#         model="claude-3-7-sonnet-latest",
+#     ),
+#     single_prompt="""
+#     For this query, what update to the documentation would have helped the user to solve their problem
+#     before asking the question?
+
+#     Here is the conversation:
+#     {conversation}
+#     """
+# )
+
+# print("Examples:")
+# for o in response.objects:
+#     print("\n" + "-" * 50)
+#     print(f"Object ID: {o.uuid}")
+#     print(f"Title: {Fore.CYAN}{o.properties['title']}{Style.RESET_ALL}")
+
+#     print(f"{Fore.GREEN}\n== ANALYSIS =={Style.RESET_ALL}")
+#     print(f"Technical Complexity: {o.properties['technicalComplexity']}")
+#     print(f"Root Cause Category: {o.properties['rootCauseCategory']}")
+#     print(f"Access Context: {o.properties['accessContext']}")
+#     print(f"Caused By Outdated Stack: {o.properties['causedByOutdatedStack']}")
+#     print(f"Is Documentation Gap: {o.properties['isDocumentationGap']}")
+
+#     print(f"{Fore.GREEN}\n== SUMMARY =={Style.RESET_ALL}")
+#     print(f"{Fore.LIGHTMAGENTA_EX}{o.generative.text}{Style.RESET_ALL}")
+
+#     conversation = o.properties['conversation']
+
+#     # First normalize all types of line endings
+#     conversation = conversation.replace('\r\n', '\n').replace('\r', '\n')
+
+#     # Clean up excess whitespace around newlines without removing paragraph breaks
+#     conversation = re.sub(r'[ \t]+\n', '\n', conversation)  # Remove trailing spaces before newlines
+#     conversation = re.sub(r'\n[ \t]+', '\n', conversation)  # Remove leading spaces after newlines
+
+#     # Replace sequences of 3 or more newlines with exactly two newlines
+#     conversation = re.sub(r'\n{3,}', '\n\n', conversation)
+
+#     # Remove new lines at the beginning and end
+#     conversation = conversation.strip()
+
+#     limit = 200
+#     print(f"{Fore.GREEN}\nConversation (first {limit} chars):{Style.RESET_ALL}")
+#     print(f"{Fore.LIGHTBLACK_EX}{conversation[:limit]}{Style.RESET_ALL}...")
 
 client.close()

@@ -1,9 +1,9 @@
 import weaviate
 from weaviate.classes.init import Auth
-from weaviate.classes.generate import GenerativeConfig
 import os
 from dotenv import load_dotenv
 from helpers import COLLECTION_NAME
+import pandas as pd
 
 weaviate_url = os.getenv("WEAVIATE_URL")
 weaviate_key = os.getenv("WEAVIATE_API_KEY")
@@ -20,15 +20,27 @@ client = weaviate.connect_to_weaviate_cloud(
 
 collection = client.collections.get(COLLECTION_NAME)
 
-response = collection.query.fetch_objects(
-    limit=50,
-)
+objs = []
 
-for o in response.objects:
-    print(f"\nObject ID: {o.uuid}")
-    for k, v in o.properties.items():
-        if "conversation" in k:
-            v = v[:100] + "..."
-        print(f"{k}: {v}")
+for o in collection.iterator(
+    return_properties=[
+        "title",
+        "date_created",
+        "has_accepted_answer",
+        "topic_id",
+        # Created by the Transformation Agent
+        "technicalComplexity",
+        "technicalDomain",
+        "rootCauseCategory",
+        "accessContext",
+        "causedByOutdatedStack",
+        "isDocumentationGap",
+        "summary"
+    ]
+):
+    objs.append(o.properties)
+
+df = pd.DataFrame(objs)
+df.to_csv("data/transformed_data.csv", index=False)
 
 client.close()
